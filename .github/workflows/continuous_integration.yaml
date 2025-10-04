@@ -45,7 +45,6 @@ jobs:
         export PYTHONPATH="${PYTHONPATH}:${PWD}/src/back"
 
         python src/back/main.py
-      continue-on-error: true
       timeout-minutes: 1
 
   frontend:
@@ -69,7 +68,3 @@ jobs:
 
     - name: Build React app
       run: npm run build
-
-    - name: Run tests
-      run: npm test -- --watchAll=false || echo "No tests found"
-      continue-on-error: true
