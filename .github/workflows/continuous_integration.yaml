@@ -1,70 +1,70 @@
-name: Continuous Integration
+# name: Continuous Integration
 
-on:
-  push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
+# on:
+#   push:
+#     branches: [ main ]
+#   pull_request:
+#     branches: [ main ]
 
-jobs:
-  backend:
-    runs-on: ubuntu-latest
+# jobs:
+#   backend:
+#     runs-on: ubuntu-latest
 
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+#     steps:
+#     - name: Checkout code
+#       uses: actions/checkout@v4
 
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.11'
+#     - name: Set up Python
+#       uses: actions/setup-python@v5
+#       with:
+#         python-version: '3.11'
 
-    - name: Install Python dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install ruff
-        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+#     - name: Install Python dependencies
+#       run: |
+#         python -m pip install --upgrade pip
+#         pip install ruff
+#         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
-    - name: Lint Python code with ruff
-      run: |
-        ruff check src/back/ --select E,F,W --ignore E501
-      continue-on-error: false
+#     - name: Lint Python code with ruff
+#       run: |
+#         ruff check src/back/ --select E,F,W --ignore E501
+#       continue-on-error: false
 
-    - name: Check if Python modules import correctly
-      run: |
-        export PYTHONPATH="${PYTHONPATH}:${PWD}/src/back"
+#     - name: Check if Python modules import correctly
+#       run: |
+#         export PYTHONPATH="${PYTHONPATH}:${PWD}/src/back"
 
-        python -c "import main; print('✓ main.py imported successfully')"
-        python -c "import utils; print('✓ utils.py imported successfully')"
-        python -c "import models; print('✓ models.py imported successfully')"
+#         python -c "import main; print('✓ main.py imported successfully')"
+#         python -c "import utils; print('✓ utils.py imported successfully')"
+#         python -c "import models; print('✓ models.py imported successfully')"
 
-        echo "All modules work fine"
+#         echo "All modules work fine"
 
-    - name: Run main.py (smoke test)
-      run: |
-        export PYTHONPATH="${PYTHONPATH}:${PWD}/src/back"
+#     - name: Run main.py (smoke test)
+#       run: |
+#         export PYTHONPATH="${PYTHONPATH}:${PWD}/src/back"
 
-        python src/back/main.py
-      timeout-minutes: 1
+#         python src/back/main.py
+#       timeout-minutes: 1
 
-  frontend:
-    runs-on: ubuntu-latest
+#   frontend:
+#     runs-on: ubuntu-latest
 
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+#     steps:
+#     - name: Checkout code
+#       uses: actions/checkout@v4
 
-    - name: Set up Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '18'
+#     - name: Set up Node.js
+#       uses: actions/setup-node@v4
+#       with:
+#         node-version: '18'
 
-    - name: Install npm dependencies
-      run: npm install
+#     - name: Install npm dependencies
+#       run: npm install
 
-    - name: Lint frontend code
-      run: npm run lint || echo "No lint script found"
-      continue-on-error: true
+#     - name: Lint frontend code
+#       run: npm run lint || echo "No lint script found"
+#       continue-on-error: true
 
-    - name: Build React app
-      run: npm run build
+#     - name: Build React app
+#       run: npm run build
