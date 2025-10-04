@@ -6,32 +6,21 @@ import { ArrowLeft, Calendar, User, Tag, ExternalLink, Loader2, AlertCircle, Boo
 import { fetchArticleById } from '@/services/mockData';
 import { getArticleContent } from '@/services/pmcApi';
 
-// Component to try multiple image URLs
-function FigureImage({ figure }) {
-  const [currentUrlIndex, setCurrentUrlIndex] = useState(0);
+// Component to display figure with image or link to view on PMC
+function FigureCard({ figure }) {
   const [imageError, setImageError] = useState(false);
 
-  const handleImageError = () => {
-    if (currentUrlIndex < figure.imageUrls.length - 1) {
-      setCurrentUrlIndex(prev => prev + 1);
-    } else {
-      setImageError(true);
-    }
-  };
-
-  if (imageError) {
+  // If we have a direct image URL and it hasn't errored, show the image
+  if (figure.imageUrl && !imageError) {
     return (
-      <div className="bg-slate-50 dark:bg-slate-800/50 rounded-lg p-6">
-        <div className="flex items-center justify-center h-48 bg-slate-200 dark:bg-slate-700 rounded-lg mb-3">
-          <div className="text-center">
-            <ImageIcon className="h-12 w-12 mx-auto text-slate-400 mb-2" />
-            <p className="text-sm text-slate-500 dark:text-slate-400">
-              Image not available
-            </p>
-            <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
-              {figure.href}
-            </p>
-          </div>
+      <div className="bg-slate-50 dark:bg-slate-800/50 rounded-lg p-6 border border-slate-200 dark:border-slate-700">
+        <div className="mb-4">
+          <img
+            src={figure.imageUrl}
+            alt={figure.label}
+            className="w-full h-auto rounded-lg shadow-md"
+            onError={() => setImageError(true)}
+          />
         </div>
         {figure.label && (
           <p className="font-semibold text-slate-900 dark:text-slate-100 mb-2">
@@ -47,15 +36,27 @@ function FigureImage({ figure }) {
     );
   }
 
+  // Fallback: show link to view on PMC
   return (
-    <div className="bg-slate-50 dark:bg-slate-800/50 rounded-lg p-6">
-      <div className="mb-3">
-        <img
-          src={figure.imageUrls[currentUrlIndex]}
-          alt={figure.label}
-          className="w-full h-auto rounded-lg shadow-md"
-          onError={handleImageError}
-        />
+    <div className="bg-slate-50 dark:bg-slate-800/50 rounded-lg p-6 border border-slate-200 dark:border-slate-700">
+      <div className="flex items-center justify-center h-48 bg-slate-200 dark:bg-slate-700 rounded-lg mb-4">
+        <div className="text-center">
+          <ImageIcon className="h-16 w-16 mx-auto text-slate-400 mb-3" />
+          <p className="text-sm text-slate-600 dark:text-slate-400 mb-3">
+            Figure available on PMC website
+          </p>
+          <Button asChild size="sm" variant="outline">
+            <a
+              href={figure.viewUrl || `https://pmc.ncbi.nlm.nih.gov/articles/PMC${figure.pmcId}/`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center"
+            >
+              <ExternalLink className="mr-2 h-3 w-3" />
+              View Figure
+            </a>
+          </Button>
+        </div>
       </div>
       {figure.label && (
         <p className="font-semibold text-slate-900 dark:text-slate-100 mb-2">
@@ -290,7 +291,7 @@ function ArticleView() {
                       </h2>
                       <div className="space-y-6">
                         {articleContent.content.figures.map((figure, figIndex) => (
-                          <FigureImage key={figIndex} figure={figure} />
+                          <FigureCard key={figIndex} figure={figure} />
                         ))}
                       </div>
                     </div>

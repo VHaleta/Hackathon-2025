@@ -56,9 +56,54 @@ export const fetchArticleFullText = async (pmcId) => {
 };
 
 /**
+ * Fetch figure image URLs from PMC HTML page
+ */
+export const fetchFigureUrls = async (pmcId) => {
+  try {
+    const url = `https://pmc.ncbi.nlm.nih.gov/articles/PMC${pmcId}/`;
+    console.log('Fetching HTML from:', url);
+
+    const response = await fetch(url, {
+      mode: 'cors',
+      credentials: 'omit'
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch PMC page: ${response.status}`);
+    }
+
+    const htmlText = await response.text();
+    console.log('Received HTML, length:', htmlText.length);
+
+    // Use regex to extract CDN image URLs
+    const figureUrls = {};
+    const urlPattern = /https:\/\/cdn\.ncbi\.nlm\.nih\.gov\/pmc\/blobs\/[^"'\s]+\.(jpg|png|gif)/g;
+    const matches = htmlText.match(urlPattern) || [];
+
+    console.log('Found image URLs:', matches.length);
+
+    matches.forEach(url => {
+      // Extract filename from URL to use as key
+      const filenameMatch = url.match(/([^\/]+\.(jpg|png|gif))$/);
+      if (filenameMatch) {
+        const filename = filenameMatch[1];
+        figureUrls[filename] = url;
+        console.log('Mapped:', filename, '->', url);
+      }
+    });
+
+    console.log('Extracted figure URLs:', figureUrls);
+    return figureUrls;
+  } catch (error) {
+    console.error('Error fetching figure URLs:', error);
+    return {};
+  }
+};
+
+/**
  * Parse PMC XML to readable sections with better formatting
  */
-export const parsePmcXml = (xmlText) => {
+export const parsePmcXml = (xmlText, pmcIdFromUrl = null, figureUrls = {}) => {
   if (!xmlText) {
     return null;
   }
@@ -85,10 +130,13 @@ export const parsePmcXml = (xmlText) => {
     pmcId: ''
   };
 
-  // Extract PMC ID from article-id
+  // Extract PMC ID from article-id, or use the one from URL
   const pmcIdElement = xmlDoc.querySelector('article-id[pub-id-type="pmc"]');
   if (pmcIdElement) {
     articleMeta.pmcId = pmcIdElement.textContent.trim();
+  } else if (pmcIdFromUrl) {
+    articleMeta.pmcId = pmcIdFromUrl;
+    console.log('Using PMC ID from URL in XML parser:', pmcIdFromUrl);
   }
 
   // Extract title
@@ -258,29 +306,39 @@ export const parsePmcXml = (xmlText) => {
       if (href) {
         const pmcId = articleMeta.pmcId || '';
 
-        // Try multiple URL patterns
-        const imageUrls = [
-          // PMC Central image service - works for most images
-          `https://www.ncbi.nlm.nih.gov/pmc/articles/PMC${pmcId}/bin/${href}`,
-          // With common extensions
-          `https://www.ncbi.nlm.nih.gov/pmc/articles/PMC${pmcId}/bin/${href}.jpg`,
-          `https://www.ncbi.nlm.nih.gov/pmc/articles/PMC${pmcId}/bin/${href}.gif`,
-          `https://www.ncbi.nlm.nih.gov/pmc/articles/PMC${pmcId}/bin/${href}.png`,
-          // Alternative PMC URL structure
-          `https://pmc.ncbi.nlm.nih.gov/articles/PMC${pmcId}/bin/${href}`,
-          // Try without extension removal (in case href already has extension)
-          `https://www.ncbi.nlm.nih.gov/core/lw/2.0/html/tileshop_pmc/tileshop_pmc_inline.html?title=Click%20on%20image%20to%20zoom&p=PMC3&id=${pmcId}_${href}`,
-        ];
+        if (!pmcId) {
+          console.warn('PMC ID is empty! Cannot generate image URLs.');
+          return;
+        }
 
-        console.log('Created image URLs:', imageUrls);
+        // Check if we have CDN URL for this image
+        const cdnUrl = figureUrls[href];
 
-        figures.push({
-          id: figId,
-          label: label,
-          caption: caption,
-          imageUrls: imageUrls,
-          href: href
-        });
+        if (cdnUrl) {
+          console.log('Found CDN URL for', href, ':', cdnUrl);
+          figures.push({
+            id: figId,
+            label: label,
+            caption: caption,
+            imageUrl: cdnUrl,
+            pmcId: pmcId,
+            href: href
+          });
+        } else {
+          // Fallback: link to view on PMC website
+          const figureId = figId.split('-').pop() || figId;
+          const figureViewUrl = `https://pmc.ncbi.nlm.nih.gov/articles/PMC${pmcId}/figure/${figureId}/`;
+
+          console.log('No CDN URL found for', href, ', using view URL');
+          figures.push({
+            id: figId,
+            label: label,
+            caption: caption,
+            viewUrl: figureViewUrl,
+            pmcId: pmcId,
+            href: href
+          });
+        }
       }
     });
   });
@@ -296,9 +354,9 @@ export const parsePmcXml = (xmlText) => {
  * Get article content using E-utilities
  */
 export const getArticleContent = async (articleUrl) => {
-  const pmcId = extractPmcId(articleUrl);
+  const pmcIdFromUrl = extractPmcId(articleUrl);
 
-  if (!pmcId) {
+  if (!pmcIdFromUrl) {
     return {
       available: false,
       message: 'Not a PMC article',
@@ -307,24 +365,28 @@ export const getArticleContent = async (articleUrl) => {
   }
 
   try {
-    // Fetch full text XML using E-utilities
-    const xmlText = await fetchArticleFullText(pmcId);
-    const parsed = parsePmcXml(xmlText);
+    // Fetch figure URLs from HTML page and full text XML in parallel
+    const [figureUrls, xmlText] = await Promise.all([
+      fetchFigureUrls(pmcIdFromUrl),
+      fetchArticleFullText(pmcIdFromUrl)
+    ]);
+
+    const parsed = parsePmcXml(xmlText, pmcIdFromUrl, figureUrls);
 
     if (parsed && parsed.sections.length > 0) {
       return {
         available: true,
-        pmcId,
+        pmcId: pmcIdFromUrl,
         content: parsed,
         originalUrl: articleUrl
       };
     }
 
     // Fallback: try to get summary
-    const summary = await fetchArticleSummary(pmcId);
+    const summary = await fetchArticleSummary(pmcIdFromUrl);
     return {
       available: false,
-      pmcId,
+      pmcId: pmcIdFromUrl,
       metadata: summary,
       message: 'Full text could not be parsed. Please view on PMC website.',
       originalUrl: articleUrl
@@ -334,7 +396,7 @@ export const getArticleContent = async (articleUrl) => {
     console.error('Error getting article content:', error);
     return {
       available: false,
-      pmcId,
+      pmcId: pmcIdFromUrl,
       error: error.message,
       message: 'Unable to fetch article content. Please view on PMC website.',
       originalUrl: articleUrl
