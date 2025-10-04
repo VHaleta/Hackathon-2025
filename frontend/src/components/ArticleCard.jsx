@@ -1,10 +1,20 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Calendar, User, Tag } from 'lucide-react';
 
 function ArticleCard({ article }) {
+  const navigate = useNavigate();
+
+  const handleClick = () => {
+    navigate(`/article/${article.id}`);
+  };
+
   return (
-    <Card className="hover:shadow-lg transition-shadow duration-200">
+    <Card
+      className="hover:shadow-lg transition-shadow duration-200 cursor-pointer"
+      onClick={handleClick}
+    >
       <CardHeader>
         <CardTitle className="text-xl font-semibold text-slate-900 dark:text-slate-100">
           {article.title}
