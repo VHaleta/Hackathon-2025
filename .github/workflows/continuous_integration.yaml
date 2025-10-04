@@ -61,7 +61,7 @@ jobs:
         node-version: '18'
 
     - name: Install npm dependencies
-      run: npm ci
+      run: npm install
 
     - name: Lint frontend code
       run: npm run lint || echo "No lint script found"
