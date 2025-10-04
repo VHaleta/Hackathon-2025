@@ -1,9 +1,10 @@
 import React from 'react';
+import MainPage from './components/MainPage';
 
 function App() {
   return (
     <div className="App">
-      <h1>Hello React</h1>
+      <MainPage />
     </div>
   );
 }
