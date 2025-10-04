@@ -1,12 +1,10 @@
 const path = require('path');
+const fs = require('fs');
 
-module.exports = function override(config, env) {
-  config.resolve.modules = [
-    path.resolve(__dirname, 'src/front'),
-    'node_modules'
-  ];
-
-  config.entry = path.resolve(__dirname, 'src/front/index.jsx');
-
-  return config;
+module.exports = {
+  paths: function (paths, env) {
+    paths.appIndexJs = path.resolve(__dirname, 'src/front/index.jsx');
+    paths.appSrc = path.resolve(__dirname, 'src/front');
+    return paths;
+  }
 };
